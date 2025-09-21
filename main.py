@@ -1,392 +1,450 @@
 
 """
-FastAPI Application for AI-Powered Startup Analyst Platform
-Google Cloud Integration with Agentic AI System
+Document-Driven FastAPI Backend
+Simplified API that takes documents and produces business reports
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-import asyncio
+from typing import Dict, List, Any, Optional
 import json
+import uuid
 import os
 from datetime import datetime
-import uuid
+import asyncio
+from enum import Enum
 
-# Import our agentic AI system
-from agentic_startup_analyst import StartupAnalystOrchestrator, AnalysisRequest
+from dotenv import load_dotenv
+load_dotenv('keys.env')
 
-# Initialize FastAPI app
+# Import the document-driven agentic system
+try:
+    from agentic_startup_analyst import (
+        DocumentDrivenOrchestrator,
+        DocumentAnalysisRequest,
+        # setup_logging,
+        # validate_environment
+    )
+    REAL_SYSTEM_AVAILABLE = True
+except ImportError:
+    REAL_SYSTEM_AVAILABLE = False
+    print("⚠️  Document-driven system not available. Check file names and dependencies.")
+
+# FastAPI app initialization
 app = FastAPI(
-    title="AI Startup Analyst Platform",
-    description="Agentic AI system for comprehensive startup evaluation",
-    version="1.0.0"
+    title="Document-Driven AI Startup Analyst",
+    description="Upload documents, get professional investment analysis reports",
+    version="3.0.0"
 )
 
-# CORS middleware for frontend integration
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize AI orchestrator
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "your-api-key-here")
-ai_orchestrator = StartupAnalystOrchestrator(GEMINI_API_KEY)
+# Global orchestrator instance
+orchestrator: Optional[DocumentDrivenOrchestrator] = None
 
-# Pydantic models for API
-class CompanyInfo(BaseModel):
-    name: str
-    sector: str
-    stage: str
-    funding_request: float
-    description: Optional[str] = None
+# Storage for analysis results
+analysis_storage: Dict[str, Dict] = {}
+status_storage: Dict[str, Dict] = {}
 
-class FinancialData(BaseModel):
-    monthly_revenue: Optional[float] = None
-    burn_rate: Optional[float] = None
-    cash_balance: Optional[float] = None
-    employees: Optional[int] = None
-    customers: Optional[int] = None
-    gross_margin: Optional[float] = None
+# Analysis status enum
+class AnalysisStatus(str, Enum):
+    PENDING = "pending"
+    EXTRACTING_DATA = "extracting_data"
+    ANALYZING_FINANCIALS = "analyzing_financials" 
+    ASSESSING_RISKS = "assessing_risks"
+    ANALYZING_MARKET = "analyzing_market"
+    GENERATING_REPORT = "generating_report"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
-class AnalysisRequestAPI(BaseModel):
-    company_info: CompanyInfo
-    financial_data: FinancialData
-    documents: Optional[List[str]] = []
-    additional_info: Optional[Dict[str, Any]] = {}
+# Simplified request models (just documents + optional info)
+class DocumentAnalysisRequest(BaseModel):
+    company_name: Optional[str] = None  # Optional hint
+    documents: List[str]  # File paths to uploaded documents
+    additional_writeup: Optional[str] = None  # Optional additional information
 
-class AnalysisStatus(BaseModel):
+class AnalysisStatusResponse(BaseModel):
     analysis_id: str
-    status: str
+    status: AnalysisStatus
     progress: float
     current_step: str
-    estimated_completion: Optional[datetime] = None
+    estimated_completion: Optional[str] = None
 
-# In-memory storage for demo (use Firebase Firestore in production)
-analysis_storage = {}
-status_storage = {}
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the document-driven AI system on startup"""
+    global orchestrator
 
-@app.get("/")
-async def root():
-    """Health check endpoint"""
-    return {
-        "message": "AI Startup Analyst Platform - Agentic AI System",
-        "status": "operational",
-        "version": "1.0.0",
-        "agents": 5,
-        "timestamp": datetime.now().isoformat()
-    }
+    print("🚀 Initializing Document-Driven AI Startup Analyst...")
+
+    if not REAL_SYSTEM_AVAILABLE:
+        print("❌ Document-driven system not available - check imports")
+        return
+
+    try:
+        # Setup logging
+        # setup_logging()
+
+        # Get Gemini API key
+        gemini_api_key = os.getenv('GEMINI_API_KEY')
+        if not gemini_api_key:
+            print("❌ GEMINI_API_KEY environment variable not set")
+            return
+
+        # Initialize orchestrator
+        orchestrator = DocumentDrivenOrchestrator(gemini_api_key)
+        print("✅ Document-driven AI orchestrator initialized successfully!")
+
+    except Exception as e:
+        print(f"❌ Failed to initialize document-driven system: {str(e)}")
 
 @app.get("/health")
 async def health_check():
-    """Detailed health check"""
-    return {
-        "status": "healthy",
-        "agents_status": {
-            "document_intelligence": "ready",
-            "financial_analysis": "ready", 
-            "risk_assessment": "ready",
-            "market_intelligence": "ready",
-            "synthesis_reporting": "ready"
-        },
-        "google_cloud_services": {
-            "gemini_api": "connected",
-            "cloud_vision": "ready",
-            "bigquery": "ready",
-            "firestore": "ready"
-        }
-    }
+    """Health check for document-driven system"""
 
-@app.post("/api/v1/analyze")
-async def analyze_startup(
-    analysis_request: AnalysisRequestAPI,
-    background_tasks: BackgroundTasks
+    if orchestrator:
+        try:
+            health_status = orchestrator.get_system_health()
+            return health_status
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e),
+                "message": "Document-driven AI system health check failed"
+            }
+    else:
+        return {
+            "status": "not_initialized",
+            "message": "Document-driven AI system not available",
+            "required": "GEMINI_API_KEY environment variable"
+        }
+
+@app.post("/api/v1/documents/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """Upload document for analysis"""
+
+    # Check file type - support more document types
+    allowed_extensions = {'.pdf', '.ppt', '.pptx', '.doc', '.docx', '.txt', '.md', '.csv', '.xlsx'}
+    file_extension = os.path.splitext(file.filename.lower())[1]
+
+    if file_extension not in allowed_extensions:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported file type: {file_extension}. Supported: {', '.join(allowed_extensions)}"
+        )
+
+    try:
+        # Generate unique file ID
+        file_id = str(uuid.uuid4())
+
+        # Save file to disk
+        os.makedirs("uploads", exist_ok=True)
+        file_path = f"uploads/{file_id}_{file.filename}"
+
+        contents = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(contents)
+
+        return {
+            "file_id": file_id,
+            "filename": file.filename,
+            "file_path": file_path,
+            "file_size": len(contents),
+            "upload_timestamp": datetime.now().isoformat(),
+            "status": "uploaded_successfully"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+
+@app.post("/api/v1/analyze-documents")
+async def analyze_documents(
+    background_tasks: BackgroundTasks,
+    company_name: Optional[str] = Form(None),
+    additional_writeup: Optional[str] = Form(None),
+    document_paths: str = Form(...)  # JSON string of document paths
 ):
     """
-    Start comprehensive startup analysis using agentic AI system
-    """
-
-    # Generate unique analysis ID
-    analysis_id = str(uuid.uuid4())
-
-    # Initialize status tracking
-    status_storage[analysis_id] = AnalysisStatus(
-        analysis_id=analysis_id,
-        status="initiated",
-        progress=0.0,
-        current_step="Initializing analysis"
-    )
-
-    # Convert API request to internal format
-    internal_request = AnalysisRequest(
-        company_name=analysis_request.company_info.name,
-        documents=analysis_request.documents,
-        financial_data=analysis_request.financial_data.dict(),
-        metadata={
-            "sector": analysis_request.company_info.sector,
-            "stage": analysis_request.company_info.stage,
-            "funding_request": analysis_request.company_info.funding_request,
-            **analysis_request.additional_info
-        }
-    )
-
-    # Start analysis in background
-    background_tasks.add_task(run_analysis, analysis_id, internal_request)
-
-    return {
-        "analysis_id": analysis_id,
-        "status": "started",
-        "message": f"Analysis initiated for {analysis_request.company_info.name}",
-        "estimated_duration_minutes": 3,
-        "status_endpoint": f"/api/v1/analysis/{analysis_id}/status"
-    }
-
-async def run_analysis(analysis_id: str, request: AnalysisRequest):
-    """
-    Background task to run the complete analysis
+    Start document-driven analysis
+    Input: Documents + optional company name/writeup
+    Output: Professional business report
     """
 
     try:
-        # Update status: Document Intelligence
-        status_storage[analysis_id].status = "processing"
-        status_storage[analysis_id].progress = 20.0
-        status_storage[analysis_id].current_step = "Document Intelligence Agent"
+        # Parse document paths
+        try:
+            documents = json.loads(document_paths) if document_paths else []
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid document_paths JSON format")
 
-        # Update status: Financial Analysis  
-        await asyncio.sleep(1)  # Simulate processing time
-        status_storage[analysis_id].progress = 40.0
-        status_storage[analysis_id].current_step = "Financial Analysis Agent"
+        if not documents:
+            raise HTTPException(status_code=400, detail="At least one document is required")
 
-        # Update status: Risk Assessment
+        # Verify documents exist
+        missing_docs = [doc for doc in documents if not os.path.exists(doc)]
+        if missing_docs:
+            raise HTTPException(status_code=400, detail=f"Documents not found: {missing_docs}")
+
+        # Generate analysis ID
+        analysis_id = str(uuid.uuid4())
+
+        # Initialize status
+        status_storage[analysis_id] = {
+            "status": AnalysisStatus.PENDING,
+            "progress": 0.0,
+            "current_step": "Initializing document analysis...",
+            "start_time": datetime.now(),
+            "estimated_completion": None
+        }
+
+        # Create analysis request
+        analysis_request = DocumentAnalysisRequest(
+            company_name=company_name,
+            documents=documents,
+            additional_writeup=additional_writeup
+        )
+
+        # Start analysis in background
+        if orchestrator:
+            background_tasks.add_task(run_document_driven_analysis, analysis_id, analysis_request)
+        else:
+            raise HTTPException(status_code=503, detail="Document-driven AI system not available")
+
+        return {
+            "analysis_id": analysis_id,
+            "status": "started",
+            "message": f"Document analysis initiated for {len(documents)} documents",
+            "estimated_duration_minutes": 2,
+            "status_endpoint": f"/api/v1/analysis/{analysis_id}/status"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start analysis: {str(e)}")
+
+async def run_document_driven_analysis(analysis_id: str, request: DocumentAnalysisRequest):
+    """Run the complete document-driven analysis pipeline"""
+
+    try:
+        print(f"🚀 Starting document-driven analysis for {analysis_id}")
+
+        # Step 1: Document extraction
+        status_storage[analysis_id].update({
+            "status": AnalysisStatus.EXTRACTING_DATA,
+            "progress": 15.0,
+            "current_step": "Extracting company data from documents..."
+        })
+        await asyncio.sleep(1)  # Small delay for UI
+
+        # Step 2: Financial analysis
+        status_storage[analysis_id].update({
+            "status": AnalysisStatus.ANALYZING_FINANCIALS,
+            "progress": 35.0,
+            "current_step": "Analyzing financial metrics and health..."
+        })
         await asyncio.sleep(1)
-        status_storage[analysis_id].progress = 60.0
-        status_storage[analysis_id].current_step = "Risk Assessment Agent"
 
-        # Update status: Market Intelligence
+        # Step 3: Risk assessment
+        status_storage[analysis_id].update({
+            "status": AnalysisStatus.ASSESSING_RISKS,
+            "progress": 55.0,
+            "current_step": "Assessing investment risks and red flags..."
+        })
         await asyncio.sleep(1)
-        status_storage[analysis_id].progress = 80.0
-        status_storage[analysis_id].current_step = "Market Intelligence Agent"
 
-        # Update status: Synthesis
+        # Step 4: Market analysis
+        status_storage[analysis_id].update({
+            "status": AnalysisStatus.ANALYZING_MARKET,
+            "progress": 75.0,
+            "current_step": "Analyzing market opportunity and competition..."
+        })
         await asyncio.sleep(1)
-        status_storage[analysis_id].progress = 90.0
-        status_storage[analysis_id].current_step = "Synthesis & Reporting Agent"
+
+        # Step 5: Report generation
+        status_storage[analysis_id].update({
+            "status": AnalysisStatus.GENERATING_REPORT,
+            "progress": 90.0,
+            "current_step": "Generating comprehensive business report..."
+        })
 
         # Run the actual analysis
-        result = await ai_orchestrator.analyze_startup(request)
+        result = await orchestrator.analyze_startup_from_documents(request)
 
         # Store results
         analysis_storage[analysis_id] = result
 
         # Mark as completed
-        status_storage[analysis_id].status = "completed"
-        status_storage[analysis_id].progress = 100.0
-        status_storage[analysis_id].current_step = "Analysis complete"
+        status_storage[analysis_id].update({
+            "status": AnalysisStatus.COMPLETED,
+            "progress": 100.0,
+            "current_step": "Business report generated successfully!",
+            "completion_time": datetime.now()
+        })
+
+        print(f"✅ Document-driven analysis completed for {analysis_id}")
 
     except Exception as e:
-        status_storage[analysis_id].status = "failed"
-        status_storage[analysis_id].current_step = f"Error: {str(e)}"
+        print(f"❌ Document analysis failed for {analysis_id}: {str(e)}")
+
+        # Mark as failed
+        status_storage[analysis_id].update({
+            "status": AnalysisStatus.FAILED,
+            "current_step": f"Analysis failed: {str(e)}",
+            "error": str(e)
+        })
 
 @app.get("/api/v1/analysis/{analysis_id}/status")
 async def get_analysis_status(analysis_id: str):
-    """
-    Get analysis status and progress
-    """
+    """Get current status of document analysis"""
 
     if analysis_id not in status_storage:
         raise HTTPException(status_code=404, detail="Analysis not found")
 
     status = status_storage[analysis_id]
 
-    response = {
+    return {
         "analysis_id": analysis_id,
-        "status": status.status,
-        "progress": status.progress,
-        "current_step": status.current_step
+        "status": status["status"],
+        "progress": status["progress"],
+        "current_step": status["current_step"],
+        "start_time": status["start_time"].isoformat(),
+        "completion_time": status.get("completion_time", {}).isoformat() if status.get("completion_time") else None,
+        "error": status.get("error")
     }
 
-    # Add results if completed
-    if status.status == "completed" and analysis_id in analysis_storage:
-        response["results_available"] = True
-        response["results_endpoint"] = f"/api/v1/analysis/{analysis_id}/results"
-
-    return response
-
-@app.get("/api/v1/analysis/{analysis_id}/results")
-async def get_analysis_results(analysis_id: str):
-    """
-    Get complete analysis results
-    """
+@app.get("/api/v1/analysis/{analysis_id}/report")
+async def get_business_report(analysis_id: str):
+    """Get completed business report"""
 
     if analysis_id not in analysis_storage:
-        raise HTTPException(status_code=404, detail="Analysis results not found")
+        raise HTTPException(status_code=404, detail="Business report not found")
 
-    if status_storage[analysis_id].status != "completed":
+    if status_storage.get(analysis_id, {}).get("status") != AnalysisStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="Analysis not yet completed")
 
     return analysis_storage[analysis_id]
 
-@app.post("/api/v1/documents/upload")
-async def upload_document(file: UploadFile = File(...)):
-    """
-    Upload and process startup documents
-    """
+@app.get("/api/v1/analysis/{analysis_id}/summary")  
+async def get_analysis_summary(analysis_id: str):
+    """Get executive summary of the analysis"""
 
-    if not file.filename.lower().endswith(('.pdf', '.ppt', '.pptx', '.doc', '.docx', '.txt')):
-        raise HTTPException(status_code=400, detail="Unsupported file type")
+    if analysis_id not in analysis_storage:
+        raise HTTPException(status_code=404, detail="Analysis not found")
 
-    # In production: upload to Google Cloud Storage
-    # For now, simulate upload
+    report = analysis_storage[analysis_id]
 
-    file_id = str(uuid.uuid4())
+    # Extract key information for quick preview
+    executive_summary = report.get("executive_summary", {})
 
     return {
-        "file_id": file_id,
-        "filename": file.filename,
-        "status": "uploaded",
-        "message": "Document uploaded and ready for analysis",
-        "supported_analysis": [
-            "pitch_deck_analysis",
-            "financial_statement_analysis", 
-            "market_research_validation"
+        "analysis_id": analysis_id,
+        "company_name": report.get("report_metadata", {}).get("company_name"),
+        "overall_score": executive_summary.get("overall_score"),
+        "investment_recommendation": executive_summary.get("investment_recommendation"),
+        "key_highlights": executive_summary.get("key_highlights", [])[:3],
+        "critical_concerns": executive_summary.get("critical_concerns", [])[:2],
+        "analysis_date": report.get("report_metadata", {}).get("analysis_date")
+    }
+
+# Additional utility endpoints
+@app.get("/api/v1/supported-formats")
+async def get_supported_formats():
+    """Get list of supported document formats"""
+    return {
+        "supported_formats": [
+            {
+                "extension": ".pdf",
+                "description": "Portable Document Format",
+                "recommended": True
+            },
+            {
+                "extension": ".pptx",
+                "description": "PowerPoint Presentation",
+                "recommended": True
+            },
+            {
+                "extension": ".docx", 
+                "description": "Word Document",
+                "recommended": True
+            },
+            {
+                "extension": ".txt",
+                "description": "Plain Text",
+                "recommended": False
+            },
+            {
+                "extension": ".md",
+                "description": "Markdown",
+                "recommended": False
+            }
+        ],
+        "recommendations": [
+            "Upload pitch decks as PDF or PPTX for best results",
+            "Include financial statements and business plans",
+            "Multiple documents provide more comprehensive analysis"
         ]
     }
 
-@app.get("/api/v1/benchmarks/{sector}")
-async def get_sector_benchmarks(sector: str):
-    """
-    Get sector benchmark data from BigQuery
-    """
+@app.delete("/api/v1/analysis/{analysis_id}")
+async def delete_analysis(analysis_id: str):
+    """Delete analysis results and free up storage"""
 
-    # In production: Query BigQuery for real benchmark data
-    benchmark_data = {
-        "sector": sector,
-        "metrics": {
-            "median_burn_rate": 75000,
-            "median_growth_rate_mom": 12.5,
-            "median_gross_margin": 72.0,
-            "median_cac_payback_months": 16,
-            "median_ltv_cac_ratio": 3.8,
-            "median_runway_months": 14
-        },
-        "sample_size": 247,
-        "last_updated": datetime.now().isoformat()
+    deleted_items = []
+
+    if analysis_id in analysis_storage:
+        del analysis_storage[analysis_id]
+        deleted_items.append("analysis_results")
+
+    if analysis_id in status_storage:
+        del status_storage[analysis_id]
+        deleted_items.append("status_data")
+
+    if not deleted_items:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    return {
+        "message": f"Analysis {analysis_id} deleted successfully",
+        "deleted_items": deleted_items
     }
 
-    return benchmark_data
+@app.get("/api/v1/analyses")
+async def list_analyses():
+    """List all analyses (for debugging/admin)"""
 
-@app.get("/api/v1/companies/{company_id}/risk-profile")
-async def get_risk_profile(company_id: str):
-    """
-    Get detailed risk assessment for a company
-    """
+    analyses = []
 
-    # Mock risk profile data
-    risk_profile = {
-        "company_id": company_id,
-        "overall_risk_score": 35.5,
-        "risk_level": "Medium-Low",
-        "risk_breakdown": {
-            "financial_risk": 25.0,
-            "market_risk": 40.0,
-            "team_risk": 15.0,
-            "technology_risk": 20.0,
-            "competitive_risk": 45.0,
-            "regulatory_risk": 10.0
-        },
-        "critical_flags": [
-            "Customer concentration risk exceeds 60%",
-            "Market size validation needed"
-        ],
-        "mitigation_strategies": [
-            "Diversify customer base through targeted acquisition",
-            "Conduct independent market research validation"
-        ]
+    for analysis_id in analysis_storage.keys():
+        status = status_storage.get(analysis_id, {})
+        report = analysis_storage.get(analysis_id, {})
+
+        analyses.append({
+            "analysis_id": analysis_id,
+            "status": status.get("status"),
+            "company_name": report.get("report_metadata", {}).get("company_name"),
+            "start_time": status.get("start_time", {}).isoformat() if status.get("start_time") else None,
+            "completion_time": status.get("completion_time", {}).isoformat() if status.get("completion_time") else None
+        })
+
+    return {
+        "total_analyses": len(analyses),
+        "analyses": analyses
     }
-
-    return risk_profile
-
-@app.get("/api/v1/market-intelligence/{sector}")
-async def get_market_intelligence(sector: str):
-    """
-    Get real-time market intelligence
-    """
-
-    # Mock market intelligence data
-    intelligence = {
-        "sector": sector,
-        "market_data": {
-            "growth_rate_cagr": 23.0,
-            "market_size_billions": 15.2,
-            "funding_activity_12m": 180000000,
-            "new_entrants_12m": 15,
-            "exits_12m": 3
-        },
-        "competitive_landscape": {
-            "top_competitors": [
-                {"name": "Competitor A", "funding": "$50M", "valuation": "$200M"},
-                {"name": "Competitor B", "funding": "$75M", "valuation": "$350M"},
-                {"name": "Competitor C", "funding": "$30M", "valuation": "$150M"}
-            ],
-            "market_concentration": 45.0,
-            "barriers_to_entry": "Medium"
-        },
-        "trends": [
-            "Increasing adoption of AI-powered solutions",
-            "Growing enterprise customer segment",
-            "Regulatory changes favoring innovation"
-        ],
-        "timestamp": datetime.now().isoformat()
-    }
-
-    return intelligence
-
-@app.websocket("/api/v1/analysis/{analysis_id}/live")
-async def websocket_analysis_updates(websocket, analysis_id: str):
-    """
-    WebSocket endpoint for real-time analysis updates
-    """
-    await websocket.accept()
-
-    # Send real-time updates during analysis
-    while True:
-        if analysis_id in status_storage:
-            status = status_storage[analysis_id]
-            await websocket.send_json({
-                "analysis_id": analysis_id,
-                "status": status.status,
-                "progress": status.progress,
-                "current_step": status.current_step,
-                "timestamp": datetime.now().isoformat()
-            })
-
-            if status.status in ["completed", "failed"]:
-                break
-
-        await asyncio.sleep(1)
-
-    await websocket.close()
-
-# Error handlers
-@app.exception_handler(404)
-async def not_found_handler(request, exc):
-    return JSONResponse(
-        status_code=404,
-        content={"message": "Resource not found", "status": "error"}
-    )
-
-@app.exception_handler(500) 
-async def server_error_handler(request, exc):
-    return JSONResponse(
-        status_code=500,
-        content={"message": "Internal server error", "status": "error"}
-    )
 
 if __name__ == "__main__":
     import uvicorn
+
+    print("🚀 Starting Document-Driven AI Startup Analyst...")
+    print("📊 Just upload documents - get professional business reports!")
+    print("📖 API Documentation: http://localhost:8000/docs")
+    print()
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
