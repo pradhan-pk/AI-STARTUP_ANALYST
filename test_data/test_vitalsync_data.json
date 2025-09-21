@@ -1,0 +1,211 @@
+{
+  "company_profile": {
+    "name": "VitalSync Health",
+    "tagline": "AI-Powered Remote Patient Monitoring Platform",
+    "sector": "HealthTech",
+    "sub_sector": "Digital Health",
+    "stage": "Series A",
+    "founded_date": "2022-03-15",
+    "location": "Austin, Texas",
+    "website": "www.vitalsync.health",
+    "description": "VitalSync Health leverages AI and IoT to provide continuous remote patient monitoring for chronic disease management, reducing hospital readmissions by 40%.",
+    "funding_request": 8000000,
+    "use_of_funds": {
+      "product_development": 40,
+      "sales_marketing": 35,
+      "operations": 15,
+      "regulatory": 10
+    }
+  },
+  "financial_data": {
+    "current_metrics": {
+      "monthly_recurring_revenue": 180000,
+      "annual_run_rate": 2160000,
+      "monthly_burn_rate": 220000,
+      "cash_balance": 3800000,
+      "runway_months": 17,
+      "employees": 28,
+      "customers": 45,
+      "gross_margin": 82.5,
+      "customer_acquisition_cost": 1200,
+      "lifetime_value": 18000,
+      "monthly_growth_rate": 12.5,
+      "customer_retention_rate": 94,
+      "net_revenue_retention": 115
+    },
+    "historical_data": {
+      "q1_2024": {
+        "revenue": 420000,
+        "customers": 35,
+        "burn": 200000
+      },
+      "q2_2024": {
+        "revenue": 520000,
+        "customers": 40,
+        "burn": 210000
+      },
+      "q3_2024": {
+        "revenue": 640000,
+        "customers": 45,
+        "burn": 220000
+      }
+    },
+    "projections": {
+      "year_1": {
+        "revenue": 4200000,
+        "customers": 85,
+        "employees": 45
+      },
+      "year_2": {
+        "revenue": 8500000,
+        "customers": 160,
+        "employees": 75
+      },
+      "year_3": {
+        "revenue": 18000000,
+        "customers": 320,
+        "employees": 120
+      }
+    }
+  },
+  "team_data": {
+    "founders": [
+      {
+        "name": "Dr. Sarah Chen",
+        "role": "CEO & Co-Founder",
+        "background": "Former VP of Digital Health at Philips Healthcare, MD from Johns Hopkins, 8 years healthcare tech experience",
+        "linkedin": "linkedin.com/in/sarahchen-md",
+        "equity": 25
+      },
+      {
+        "name": "Michael Rodriguez",
+        "role": "CTO & Co-Founder",
+        "background": "Former Senior ML Engineer at Google Health, MS Computer Science Stanford, 6 years AI/ML experience",
+        "linkedin": "linkedin.com/in/mrodriguez-tech",
+        "equity": 22
+      }
+    ],
+    "key_employees": [
+      {
+        "role": "VP Engineering",
+        "background": "Ex-Apple Health team, 10 years experience"
+      },
+      {
+        "role": "VP Sales",
+        "background": "Former Salesforce Health Cloud, $50M+ sales track record"
+      },
+      {
+        "role": "Head of Regulatory",
+        "background": "Former FDA medical device reviewer, 15 years experience"
+      },
+      {
+        "role": "Chief Medical Officer",
+        "background": "Practicing cardiologist, clinical research background"
+      }
+    ],
+    "advisors": [
+      {
+        "name": "Dr. Robert Smith",
+        "role": "Former CMO at Teladoc Health"
+      },
+      {
+        "name": "Jennifer Liu",
+        "role": "Former VP at Andreessen Horowitz"
+      },
+      {
+        "name": "David Park",
+        "role": "Healthcare regulatory expert"
+      }
+    ]
+  },
+  "market_data": {
+    "tam": 45000000000,
+    "sam": 12000000000,
+    "som": 1200000000,
+    "market_growth_rate": 18.5,
+    "target_customer_segments": [
+      "Health systems and hospitals",
+      "Accountable care organizations",
+      "Insurance providers",
+      "Home healthcare agencies"
+    ],
+    "competitive_landscape": [
+      {
+        "name": "Philips Healthcare",
+        "funding": "Public",
+        "market_share": 15
+      },
+      {
+        "name": "Teladoc Health",
+        "funding": "Public",
+        "market_share": 12
+      },
+      {
+        "name": "BioTelemetry",
+        "funding": "$2.8B acquisition",
+        "market_share": 8
+      },
+      {
+        "name": "Current Health",
+        "funding": "$64M",
+        "market_share": 3
+      }
+    ]
+  },
+  "product_data": {
+    "core_product": "Remote Patient Monitoring Platform",
+    "key_features": [
+      "AI-powered vital sign analysis",
+      "Predictive health alerts",
+      "Clinical dashboard for providers",
+      "Patient mobile application",
+      "Integration with EHR systems",
+      "FDA-cleared medical devices"
+    ],
+    "technology_stack": [
+      "Python/Django backend",
+      "React.js frontend",
+      "TensorFlow for AI models",
+      "AWS cloud infrastructure",
+      "HIPAA compliant architecture",
+      "Real-time data processing"
+    ],
+    "ip_portfolio": {
+      "patents_filed": 3,
+      "patents_granted": 1,
+      "trademarks": 2,
+      "trade_secrets": "Proprietary AI algorithms"
+    }
+  },
+  "traction_data": {
+    "pilot_customers": [
+      {
+        "name": "Austin Regional Medical Center",
+        "patients": 500,
+        "contract_value": 240000
+      },
+      {
+        "name": "Texas Heart Institute",
+        "patients": 300,
+        "contract_value": 180000
+      },
+      {
+        "name": "Memorial Healthcare System",
+        "patients": 800,
+        "contract_value": 420000
+      }
+    ],
+    "clinical_outcomes": {
+      "readmission_reduction": 38,
+      "patient_satisfaction": 4.7,
+      "clinician_satisfaction": 4.5,
+      "cost_savings_per_patient": 3200
+    },
+    "partnerships": [
+      "Strategic partnership with Mayo Clinic for clinical validation",
+      "Technology integration with Epic Systems",
+      "Distribution agreement with Cardinal Health"
+    ],
+    "regulatory_status": "FDA 510(k) clearance obtained for core monitoring devices"
+  }
+}
